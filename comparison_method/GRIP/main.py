@@ -1,12 +1,11 @@
-print("Starting test")
 from def_train_eval import *
 from data_stream import *
 import pickle              # import module first
 
 DATA = 'NEW_LYFT'
-SUFIX = 'trial_lstm_10_4_0.001'  #shorter is 10 epochs and batch size is 10 lr=0.1
-TRAIN = False
-EVAL = True
+SUFIX = 'git_trial'  #shorter is 10 epochs and batch size is 10 lr=0.1
+TRAIN = True
+EVAL = False
 DIR = '../../../resources/data/{}/'.format(DATA)
 
 epochs = 1
