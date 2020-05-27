@@ -2,7 +2,7 @@
 final quarter - final project
 
 
-resources tfolder shd be populated with test and train pkl files for the code to work.
+resources folder shd be populated with test and train pkl files for the code to work.
 
 ##running of GRIP model
 
