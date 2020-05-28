@@ -212,7 +212,18 @@ class Decoder(nn.Module):
             if i == 0:
                 Hidden_State = hidden_vec_from_encoder
             Hidden_State , Cell_State = self.forward( Hidden_State , Cell_State )
-            stream2_output[:,:,:,i] = self.linear(Hidden_State.permute(0,2,1)).permute(0,2,1)
+#             print('hidden state',Hidden_State.shape) #[ 15 256 220]
+#             print("Max value of hidden state", torch.max(Hidden_State).cpu().detach().numpy())
+#             print("Min value", torch.min(Hidden_State).cpu().detach().numpy())
+           
+            
+            stream2_output[:,:,:,i] = torch.tanh(self.linear(Hidden_State.permute(0,2,1)).permute(0,2,1))
+#             print('after permute',stream2_output.shape)
+            
+#             print("Max value of stream2", torch.max(stream2_output).cpu().detach().numpy())
+#             print("Min value", torch.min(stream2_output).cpu().detach().numpy())
+         
+           
         return stream2_output, Hidden_State , Cell_State
 
     def initHidden(self):
