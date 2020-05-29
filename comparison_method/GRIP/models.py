@@ -20,7 +20,7 @@ class GRIPModel(nn.Module):
 #         self.Conv5 = nn.Conv2d(128, 256, kernel_size=(1, 3), padding=(0, 0 if timesteps >= 4 else 1), stride=(1, 2 if timesteps >= 4 else 1))
         self.Conv5 = nn.Conv2d(128, 256, kernel_size=(1, 3), padding=(0, 1 if timesteps >= 4 else 1), stride=(1, 2 if timesteps >= 4 else 1))
 #         self.Conv5 = nn.Conv2d(128, 256, kernel_size=(1, 3), padding=(0, 0 if timesteps >= 4 else 1))
-        self.Dropout = nn.Dropout(0.5)
+        self.Dropout = nn.Dropout(0.2)
 
     def graph_operation(self, x, adj, alpha=0.001):
 #         print('shape of x',x.shape)
@@ -133,92 +133,6 @@ class GRIPModel(nn.Module):
 
         return x
 
-class Encoder ( nn.Module ):
-    def __init__ ( self , final_coordinate_size , n_agents  ):
-        """
-        cell_size is the size of cell_state.
-        hidden_size is the size of hidden_state, or say the output_state of each step
-        """
-        super ( Encoder , self ).__init__ ()
-
-        self.n_agents = n_agents
-        self.coordinates = final_coordinate_size
-        self.fl = nn.Linear ( n_agents , n_agents)
-        self.il = nn.Linear ( n_agents , n_agents)
-        self.ol = nn.Linear ( n_agents, n_agents)
-        self.Cl = nn.Linear ( n_agents , n_agents)
-
-
-    def forward ( self , input , Hidden_State , Cell_State ):
-        # print(input.shape[1])
-        print(Hidden_State.shape[1])
-        combined = Hidden_State
-        f = torch.sigmoid ( self.fl ( combined ) )
-        i = torch.sigmoid ( self.il ( combined ) )
-        o = torch.sigmoid ( self.ol ( combined ) )
-        C = torch.tanh ( self.Cl ( combined ) )
-        Cell_State = f * Cell_State + i * C
-        Hidden_State = o * torch.tanh ( Cell_State )
-
-        return Hidden_State , Cell_State
-
-    def loop ( self , inputs ):
-        batch_size = inputs.size ( 0 )
-        time_step = inputs.size ( 3 )
-        Hidden_State , Cell_State = self.initHidden ( batch_size )
-        for i in range ( time_step ):
-            if i==0:
-                Hidden_State = inputs[:,:,:,i]
-            Hidden_State , Cell_State = self.forward(inputs[:,:,: ,i], Hidden_State, Cell_State)
-        return Hidden_State , Cell_State
-
-    def initHidden ( self , batch_size ):
-        Hidden_State = Variable ( torch.zeros ( batch_size , self.coordinates, self.n_agents ).to ( device ) )
-        Cell_State = Variable ( torch.zeros ( batch_size , self.coordinates, self.n_agents).to ( device ) )
-        return Hidden_State , Cell_State
-
-
-class Decoder(nn.Module):
-    def __init__(self, final_coordinate_size, batchsize, n_agents, timestep):
-        super(Decoder, self).__init__()
-        self.coordinates = final_coordinate_size
-        self.batch_size = batchsize
-        self.time_step = timestep
-        self.n_agents = n_agents
-        self.fl = nn.Linear ( n_agents , n_agents)
-        self.il = nn.Linear ( n_agents , n_agents)
-        self.ol = nn.Linear ( n_agents, n_agents)
-        self.Cl = nn.Linear ( n_agents , n_agents)
-        self.linear = nn.Linear ( final_coordinate_size ,  2)
-
-
-    def forward(self , Hidden_State , Cell_State):
-
-        # combined = torch.cat ( (input , Hidden_State) , 1 )
-        combined = Hidden_State
-        f = torch.sigmoid ( self.fl ( combined ) )
-        i = torch.sigmoid ( self.il ( combined ) )
-        o = torch.sigmoid ( self.ol ( combined ) )
-        C = torch.tanh ( self.Cl ( combined ) )
-        Cell_State = f * Cell_State + i * C
-        Hidden_State = o * torch.tanh ( Cell_State )
-
-        return Hidden_State , Cell_State
-
-    def loop ( self, hidden_vec_from_encoder ):
-        time_step = self.time_step
-        Cell_State, stream2_output = self.initHidden()
-        for i in range ( time_step ):
-            if i == 0:
-                Hidden_State = hidden_vec_from_encoder
-            Hidden_State , Cell_State = self.forward( Hidden_State , Cell_State )
-            stream2_output[:,:,:,i] = self.linear(Hidden_State.permute(0,2,1)).permute(0,2,1)
-        return stream2_output, Hidden_State , Cell_State
-
-    def initHidden(self):
-        # out = torch.zeros(self.batch_size , self.coordinates, self.n_agents , device=device)
-        output =  torch.zeros(self.batch_size , 2, self.n_agents , self.time_step, device=device)
-        return torch.zeros(self.batch_size , self.coordinates, self.n_agents , device=device), output
 # class Encoder ( nn.Module ):
 #     def __init__ ( self , final_coordinate_size , n_agents  ):
 #         """
@@ -239,7 +153,7 @@ class Decoder(nn.Module):
 #         # print(input.shape[1])
 #         print(Hidden_State.shape[1])
 #         combined = Hidden_State
-#         f = torch.sigmoid ( self.fl ( combined ) )
+#         f = torch.sigmoid ( self.fl ( combined ) ) fl -> linear 270->270, combined =[16,256,270]
 #         i = torch.sigmoid ( self.il ( combined ) )
 #         o = torch.sigmoid ( self.ol ( combined ) )
 #         C = torch.tanh ( self.Cl ( combined ) )
@@ -263,63 +177,6 @@ class Decoder(nn.Module):
 #         Cell_State = Variable ( torch.zeros ( batch_size , self.coordinates, self.n_agents).to ( device ) )
 #         return Hidden_State , Cell_State
 
-    
-# class Encoder ( nn.Module ):
-#     def __init__ ( self , final_coordinate_size , n_agents  ):
-#         """
-#         cell_size is the size of cell_state.
-#         hidden_size is the size of hidden_state, or say the output_state of each step
-#         """
-#         super ( Encoder , self ).__init__ ()
-
-# #         self.n_agents = n_agents
-# #         self.coordinates = final_coordinate_size
-# #         self.fl = nn.Linear ( n_agents , n_agents)
-# #         self.il = nn.Linear ( n_agents , n_agents)
-# #         self.ol = nn.Linear ( n_agents, n_agents)
-# #         self.Cl = nn.Linear ( n_agents , n_agents)
-        
-#         # Hidden dimensions
-#         self.hidden_dim = n_agents
-
-#         # Number of hidden layers
-#         self.layer_dim = 2
-
-#         # Building your LSTM
-#         # batch_first=True causes input/output tensors to be of shape
-#         # (batch_dim, seq_dim, feature_dim)
-#         self.lstm = nn.LSTM(n_agents, self.hidden_dim, self.layer_dim, batch_first=True)
-
-
-#     def forward ( self , state , Hidden = None , Cell_State = None):
-#         # print(input.shape[1])
-#         Hidden,state = self.lstm(Hidden,state)
-#         print('in encoder')
-#         return Hidden,state
-
-# #     def loop ( self , inputs ):
-# #         batch_size = inputs.size ( 0 )
-# #         time_step = inputs.size ( 3 )
-# #         Hidden_State , Cell_State = self.initHidden ( batch_size )
-# #         for i in range ( time_step ):
-# #             if i==0:
-# #                 Hidden_State = inputs[:,:,:,i]
-# #             Hidden_State , Cell_State = self.forward(inputs[:,:,: ,i], Hidden_State, Cell_State)
-# #         return Hidden_State , Cell_State
-#     def loop ( self , inputs ):
-#         batch_size = inputs.size ( 0 )
-#         time_step = inputs.size ( 3 )
-#         Hidden_State , Cell_State = self.initHidden ( batch_size )
-#         for i in range ( time_step ):
-#             if i==0:
-#                 Hidden_State = inputs[:,:,:,i]
-#             Hidden_State , Cell_State = self.forward(inputs[:,:,: ,i], Hidden_State, Cell_State)
-#         return Hidden_State , Cell_State
-
-#     def initHidden ( self , batch_size ):
-#         Hidden_State = None
-#         Cell_State = None
-#         return Hidden_State , Cell_State
 
 # class Decoder(nn.Module):
 #     def __init__(self, final_coordinate_size, batchsize, n_agents, timestep):
@@ -328,34 +185,108 @@ class Decoder(nn.Module):
 #         self.batch_size = batchsize
 #         self.time_step = timestep
 #         self.n_agents = n_agents
-#         self.hidden_dim = n_agents
-
-#         # Number of hidden layers
-#         self.layer_dim = 2
-
-#         # Building your LSTM
-#         # batch_first=True causes input/output tensors to be of shape
-#         # (batch_dim, seq_dim, feature_dim)
-#         self.lstm = nn.LSTM(n_agents, self.hidden_dim, self.layer_dim, batch_first=True)
+#         self.fl = nn.Linear ( n_agents , n_agents)
+#         self.il = nn.Linear ( n_agents , n_agents)
+#         self.ol = nn.Linear ( n_agents, n_agents)
+#         self.Cl = nn.Linear ( n_agents , n_agents)
+#         self.linear = nn.Linear ( final_coordinate_size ,  2)
 
 
-#     def forward ( self , state , Hidden = None , Cell_State = None):
-#         # print(input.shape[1])
-#         Hidden,state = self.lstm(Hidden,state)
-#         print('in decoder')
-#         return Hidden,state
-    
+#     def forward(self , Hidden_State , Cell_State):
+
+#         # combined = torch.cat ( (input , Hidden_State) , 1 )
+#         combined = Hidden_State
+#         f = torch.sigmoid ( self.fl ( combined ) )
+#         i = torch.sigmoid ( self.il ( combined ) )
+#         o = torch.sigmoid ( self.ol ( combined ) )
+#         C = torch.tanh ( self.Cl ( combined ) )
+#         Cell_State = f * Cell_State + i * C
+#         Hidden_State = o * torch.tanh ( Cell_State )
+
+#         return Hidden_State , Cell_State
+
 #     def loop ( self, hidden_vec_from_encoder ):
 #         time_step = self.time_step
 #         Cell_State, stream2_output = self.initHidden()
 #         for i in range ( time_step ):
 #             if i == 0:
 #                 Hidden_State = hidden_vec_from_encoder
-#             Hidden_State , state = self.forward( Hidden_State , state)
+#             Hidden_State , Cell_State = self.forward( Hidden_State , Cell_State )
 #             stream2_output[:,:,:,i] = self.linear(Hidden_State.permute(0,2,1)).permute(0,2,1)
 #         return stream2_output, Hidden_State , Cell_State
 
 #     def initHidden(self):
 #         # out = torch.zeros(self.batch_size , self.coordinates, self.n_agents , device=device)
-#         output =  None
+#         output =  torch.zeros(self.batch_size , 2, self.n_agents , self.time_step, device=device)
 #         return torch.zeros(self.batch_size , self.coordinates, self.n_agents , device=device), output
+
+    
+class Encoder ( nn.Module ):
+    def __init__ ( self , final_coordinate_size , n_agents  ):
+        """
+        cell_size is the size of cell_state.
+        hidden_size is the size of hidden_state, or say the output_state of each step
+        """
+        super ( Encoder , self ).__init__ ()
+        print("final_coordinate_size.......................................................",final_coordinate_size," agents ",n_agents)
+        self.hidden_dim = final_coordinate_size*n_agents
+        self.layer_dim = 2
+        self.lstm = nn.LSTM(input_size = final_coordinate_size*n_agents,hidden_size=2*n_agents,
+                            num_layers = 2, batch_first = True)
+
+
+    def forward ( self , state , Hidden = None , Cell_State = None):
+        state = state.view(state.shape[0],1,-1)
+#         print("state...",state.shape)
+        state,Hidden = self.lstm(state,Hidden)
+        state = torch.tanh(state)
+#         print('in encoder')
+        return Hidden,state
+
+    def loop ( self , inputs ):
+#         print("shape of input",inputs.shape)
+        batch_size = inputs.size ( 0 )
+        time_step = inputs.size ( 3 )
+        Hidden_State , Output = self.initHidden ( batch_size )
+        for i in range ( time_step ):
+            Hidden_State , Output = self.forward(inputs[:,:,: ,i], Hidden_State, Output)
+        return Output,Hidden_State
+
+    def initHidden ( self , batch_size ):
+        Hidden_State = None
+        Cell_State = None
+        return Hidden_State , Cell_State
+
+class Decoder(nn.Module):
+    def __init__(self, final_coordinate_size, batchsize, n_agents, timestep):
+        super(Decoder, self).__init__()
+        self.coordinates = final_coordinate_size
+        self.batch_size = batchsize
+        self.time_step = timestep
+        self.n_agents = n_agents
+        
+        print("final coordinate decoder : ",final_coordinate_size)
+        self.hidden_dim = final_coordinate_size
+        self.layer_dim = 2
+        self.lstm = nn.LSTM(input_size = 2*n_agents,hidden_size=2*n_agents,
+                            num_layers = 2, batch_first = True)
+
+    def forward ( self , state , Hidden):
+        state,Hidden = self.lstm(state,Hidden)
+        state = torch.tanh(state)
+        return Hidden,state
+    
+    def loop ( self, output_state_from_encoder):
+        time_step = self.time_step
+        Cell_State, stream2_output = self.initHidden()
+        state = output_state_from_encoder
+        Hidden_State = None
+        for i in range ( time_step ):
+            Hidden_State , state = self.forward( state,Hidden_State)
+#             print("State shape",state.view(state.shape[0],2,-1).shape)
+            stream2_output[:,:,:,i] = state.view(state.shape[0],2,-1)
+        return stream2_output, Hidden_State , Cell_State
+
+    def initHidden(self):
+        output =  torch.zeros(self.batch_size , 2, self.n_agents , self.time_step, device=device)
+        return torch.zeros(self.batch_size , self.coordinates, self.n_agents , device=device), output
