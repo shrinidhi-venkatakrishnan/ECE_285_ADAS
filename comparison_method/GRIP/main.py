@@ -14,7 +14,8 @@ save_per_epoch = 1
 
 train_seq_len = 6
 pred_seq_len = 10
-torch.manual_seed(42)
+torch.manual_seed(0)
+torch.cuda.manual_seed_all
 
 
 if __name__ == "__main__":
