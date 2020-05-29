@@ -17,7 +17,7 @@ from torch.autograd import Variable
 
 device = torch.device("cuda:0")
 # s1 = True
-BATCH_SIZE= 64
+BATCH_SIZE= 32
 train_seq_len = 10
 pred_seq_len = 20
 FINAL_GRIP_OUTPUT_COORDINATE_SIZE = 256
@@ -192,8 +192,8 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
     fde = 0
     count = 0
 
-#     num_batches = int(len(train_dataloader)/BATCH_SIZE)
-    num_batches = 1
+    num_batches = int(1000/BATCH_SIZE)
+#     num_batches = 1
     mse2=np.empty((0,20))
 
     for bch in range ( num_batches ):
