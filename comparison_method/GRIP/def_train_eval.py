@@ -17,9 +17,9 @@ from torch.autograd import Variable
 
 device = torch.device("cuda:0")
 # s1 = True
-BATCH_SIZE= 32
-train_seq_len = 6
-pred_seq_len = 10
+BATCH_SIZE= 64
+train_seq_len = 10
+pred_seq_len = 20
 FINAL_GRIP_OUTPUT_COORDINATE_SIZE = 256
 FINAL_GRIP_OUTPUT_COORDINATE_SIZE_DECODER = 256
 MODEL_LOC = '../../../resources/trained_models/GRIP'
@@ -28,6 +28,7 @@ def load_grip_batch(index, data_raw, batchsize):
     keys = list(data_raw[0].keys())
 #     print("keys",keys)
     timesteps = len(keys) - 2
+    print (timesteps)
     coordinates, n_agents = data_raw[0][keys[2]].shape
 #     print("coordinates, agents", coordinates, n_agents)
     data = torch.zeros((batchsize, coordinates, n_agents, timesteps)).to(device)
@@ -38,7 +39,7 @@ def load_grip_batch(index, data_raw, batchsize):
     for i in range(range_batch_start, range_batch_end):
         keys = list(data_raw[i].keys())
         for t in range(timesteps):
-            data[i%16, :, :, t] = torch.from_numpy(data_raw[i][keys[2 + t]]).to(device)
+            data[i%batchsize, :, :, t] = torch.from_numpy(data_raw[i][keys[2 + t]]).to(device)
     return data
 
 
@@ -193,39 +194,29 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
 
 #     num_batches = int(len(train_dataloader)/BATCH_SIZE)
     num_batches = 1
+    mse2=np.empty((0,20))
 
+    for bch in range ( num_batches ):
+        print ( '# {}/{} batch'.format ( bch , num_batches ) )
+        grip_batch_train = load_grip_batch (bch, train_dataloader , BATCH_SIZE )
+        grip_batch_test = load_grip_batch (bch, label_dataloader , BATCH_SIZE )
 
-    n_epoch=1 
-    for epoch in range ( n_epoch): 
-
-
-
-        for bch in range ( num_batches ):
-            print ( '# {}/{} epoch {}/{} batch'.format ( epoch , n_epochs , bch , num_batches ) )
-            grip_batch_train = load_grip_batch (bch, train_dataloader , BATCH_SIZE )
-            grip_batch_test = load_grip_batch (bch, label_dataloader , BATCH_SIZE )
-
-            input_to_LSTM = grip_model ( grip_batch_train )
-            Hidden_State , _ = encoder.loop ( input_to_LSTM )
-            stream2_out , _ , _ = decoder.loop ( Hidden_State )
-            scaled_train = scale_train ( stream2_out , grip_batch_test)
-            ade_bch, fde_bch = MSE(scaled_train/torch.max(scaled_train), grip_batch_test/torch.max(grip_batch_test)) * (torch.max(grip_batch_test)).cpu().detach().numpy()
-#             mse = np.sqrt(mse)
-#             print ('mse shape- ', mse.shape)
-            ade += ade_bch
-            fde += fde_bch
-#             fde += mse[-1]
-#             print ('ade shape- ', ade.shape)
-
-        # count += BATCH_SIZE
-#         count += 1
-#     ade = ade/count
-#     fde = fde/count
-    ade = ade/(n_epoch * num_batches)
-    fde = fde/(n_epoch * num_batches)
-
-    print("ADE: {} FDE: {}".format(ade, fde))
-    print ( "average: ADE:{} FDE:{}".format(np.mean ( ade ), np.mean(fde) ))
+        input_to_LSTM = grip_model ( grip_batch_train )
+        Hidden_State , _ = encoder.loop ( input_to_LSTM )
+        stream2_out , _ , _ = decoder.loop ( Hidden_State )
+        scaled_train = scale_train ( stream2_out , grip_batch_test)
+        
+        ade_bch, fde_bch, mse = MSE(scaled_train/torch.max(scaled_train), grip_batch_test/torch.max(grip_batch_test)) * (torch.max(grip_batch_test)).cpu().detach().numpy()
+        
+        mse2=np.concatenate((mse2,mse))
+        ade += ade_bch
+        fde += fde_bch
+        
+    ade = ade/(num_batches)
+    fde = fde/(num_batches)
+    mse2=np.mean(mse2,axis=0)
+    rmse=np.sqrt(mse2)
+    print ('Epoch batch Average ADE:',ade, '-------------FDE:',fde, '-------------RMSE', rmse )
 
 
 def MSE(y_pred, y_gt, device=device):
@@ -234,11 +225,18 @@ def MSE(y_pred, y_gt, device=device):
     mask = np.ones(y_gt.shape)
     mask[y_gt == 0] = 0 
     y_pred = y_pred*mask
+    
+    # ADE FDE Calculation
     ade = np.mean(np.linalg.norm(y_pred - y_gt, axis=1))
     root_error = np.linalg.norm(y_pred - y_gt, axis=1)
     root_error_agents = np.sum(root_error, axis = 1)
     root_error_dp = np.sum(root_error_agents, axis = 0)
     fde = root_error_dp[-1]/(y_pred.shape[0]*y_pred.shape[2])
-#     fde = np.mean(np.linalg.norm(y_pred[:,:,:,-1] - y_gt[:,:,:,-1], axis = 1) )
-#     print (np.linalg.norm(y_pred[:,:,:,-1] - y_gt[:,:,:,-1]).shape)
-    return ade, fde
+    
+    # MSE Calculation
+    accuracy=np.zeros(np.shape(y_pred))
+    accuracy=y_pred-y_gt
+    arr = np.power(accuracy,2)
+    x_y=np.sum(arr,axis=1)
+    sum_agents=np.mean(x_y,axis=1)
+    return ade, fde, sum_agents
