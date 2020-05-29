@@ -246,8 +246,9 @@ class Encoder ( nn.Module ):
 
 
     def forward ( self , state , Hidden = None , Cell_State = None):
+        print("state...",state.shape)
+        state = state.contiguous()
         state = state.view(state.shape[0],1,-1)
-#         print("state...",state.shape)
         state,Hidden = self.lstm(state,Hidden)
         state = torch.tanh(state)
 #         print('in encoder')
