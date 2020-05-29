@@ -153,7 +153,7 @@ class GRIPModel(nn.Module):
 #         # print(input.shape[1])
 #         print(Hidden_State.shape[1])
 #         combined = Hidden_State
-#         f = torch.sigmoid ( self.fl ( combined ) ) fl -> linear 270->270, combined =[16,256,270]
+#         f = torch.sigmoid ( self.fl ( combined ) )
 #         i = torch.sigmoid ( self.il ( combined ) )
 #         o = torch.sigmoid ( self.ol ( combined ) )
 #         C = torch.tanh ( self.Cl ( combined ) )
@@ -212,14 +212,24 @@ class GRIPModel(nn.Module):
 #             if i == 0:
 #                 Hidden_State = hidden_vec_from_encoder
 #             Hidden_State , Cell_State = self.forward( Hidden_State , Cell_State )
-#             stream2_output[:,:,:,i] = self.linear(Hidden_State.permute(0,2,1)).permute(0,2,1)
+# #             print('hidden state',Hidden_State.shape) #[ 15 256 220]
+# #             print("Max value of hidden state", torch.max(Hidden_State).cpu().detach().numpy())
+# #             print("Min value", torch.min(Hidden_State).cpu().detach().numpy())
+           
+            
+#             stream2_output[:,:,:,i] = torch.tanh(self.linear(Hidden_State.permute(0,2,1)).permute(0,2,1))
+# #             print('after permute',stream2_output.shape)
+            
+# #             print("Max value of stream2", torch.max(stream2_output).cpu().detach().numpy())
+# #             print("Min value", torch.min(stream2_output).cpu().detach().numpy())
+         
+           
 #         return stream2_output, Hidden_State , Cell_State
 
 #     def initHidden(self):
 #         # out = torch.zeros(self.batch_size , self.coordinates, self.n_agents , device=device)
 #         output =  torch.zeros(self.batch_size , 2, self.n_agents , self.time_step, device=device)
 #         return torch.zeros(self.batch_size , self.coordinates, self.n_agents , device=device), output
-
     
 class Encoder ( nn.Module ):
     def __init__ ( self , final_coordinate_size , n_agents  ):
