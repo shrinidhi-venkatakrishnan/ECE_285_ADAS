@@ -159,7 +159,10 @@ def train_stream(input_tensor, target_tensor, encoder, decoder, encoder_optimize
 #     print('after resizing target', target_tensor.shape)
 
     ## New loss calculation
-    loss = l(scaled_train, target_tensor)
+    mask = np.ones(target_tensor.shape)
+    mask[target_tensor.cpu().detach().numpy() == 0] = 0
+    scaled_train = scaled_train*torch.tensor(mask).to(device)
+    loss = l(scaled_train.float(), target_tensor)
     div = torch.tensor(scaled_train.shape[1]*scaled_train.shape[2])
     loss = loss/div
     loss.backward()

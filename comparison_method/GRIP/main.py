@@ -6,9 +6,9 @@ DATA = 'NEW_LYFT'
 SUFIX = 'git_trial'  #shorter is 10 epochs and batch size is 10 lr=0.1
 TRAIN = True
 EVAL = False
-DIR = '../../../resources/data/{}/'.format(DATA)
+DIR = '../../../resources/'
 
-epochs = 1
+epochs = 2
 save_per_epoch = 1
 
 
