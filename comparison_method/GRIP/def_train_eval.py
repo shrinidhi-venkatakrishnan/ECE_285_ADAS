@@ -195,6 +195,7 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
 #     num_batches = int(len(train_dataloader)/BATCH_SIZE)
     num_batches = 1
     mse2=np.empty((0,pred_seq_len))
+    ade_mat=np.empty((0,pred_seq_len))
 
     for bch in range ( num_batches ):
         print ( '# {}/{} batch'.format ( bch , num_batches ) )
@@ -206,16 +207,19 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
         stream2_out , _ , _ = decoder.loop ( Hidden_State )
         scaled_train = scale_train ( stream2_out , grip_batch_test)
         
-        ade_bch, fde_bch, mse = MSE(scaled_train/torch.max(scaled_train), grip_batch_test/torch.max(grip_batch_test)) * (torch.max(grip_batch_test)).cpu().detach().numpy()
+        ade_bch, mse = MSE(scaled_train/torch.max(scaled_train), grip_batch_test/torch.max(grip_batch_test)) * (torch.max(grip_batch_test)).cpu().detach().numpy()
         
         mse2=np.concatenate((mse2,mse))
-        ade += ade_bch
-        fde += fde_bch
+        ade_mat=np.concatenate((ade_mat,ade_bch))
+#         ade += ade_bch
+#         fde += fde_bch
         
-    ade = ade/(num_batches)
-    fde = fde/(num_batches)
+#     ade = ade/(num_batches)
+#     fde = fde/(num_batches)
     mse2=np.mean(mse2,axis=0)
     rmse=np.sqrt(mse2)
+    ade=np.mean(ade_mat,axis=0)
+    fde=ade[-1]
     print ('Epoch batch Average ADE:',ade, '-------------FDE:',fde, '-------------RMSE', rmse )
 
 
@@ -227,11 +231,11 @@ def MSE(y_pred, y_gt, device=device):
     y_pred = y_pred*mask
     
     # ADE FDE Calculation
-    ade = np.mean(np.linalg.norm(y_pred - y_gt, axis=1))
-    root_error = np.linalg.norm(y_pred - y_gt, axis=1)
-    root_error_agents = np.sum(root_error, axis = 1)
-    root_error_dp = np.sum(root_error_agents, axis = 0)
-    fde = root_error_dp[-1]/(y_pred.shape[0]*y_pred.shape[2])
+#     ade = np.linalg.norm(y_pred - y_gt, axis=1) #16 220 20
+    root_error = np.linalg.norm(y_pred - y_gt, axis=1)#16 220 20
+    root_error_agents = np.mean(root_error, axis = 1) # 16 20
+#     root_error_dp = np.sum(root_error_agents, axis = 0)
+#     fde = root_error_dp[-1]/(y_pred.shape[0]*y_pred.shape[2])
     
     # MSE Calculation
     accuracy=np.zeros(np.shape(y_pred))
@@ -239,4 +243,5 @@ def MSE(y_pred, y_gt, device=device):
     arr = np.power(accuracy,2)
     x_y=np.sum(arr,axis=1)
     sum_agents=np.mean(x_y,axis=1)
-    return ade, fde, sum_agents
+    return root_error_agents,sum_agents
+#     return ade, fde, sum_agents
