@@ -1,5 +1,5 @@
 # ECE_285_ADAS
-final quarter - final project
+final quarter - final project!!!
 
 
 resources folder shd be populated with test and train pkl files for the code to work.
