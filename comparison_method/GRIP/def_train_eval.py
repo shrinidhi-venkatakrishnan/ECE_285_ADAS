@@ -34,7 +34,7 @@ def load_grip_batch(index, data_raw, batchsize):
     range_batch_start = batchsize*index
 #     print(len(data_raw))
     range_batch_end = min(batchsize*(index+1), len(data_raw) - 1)
-    print("range_batch_start,range_batch_end", range_batch_start, range_batch_end)
+#     print("range_batch_start,range_batch_end", range_batch_start, range_batch_end)
     for i in range(range_batch_start, range_batch_end):
         keys = list(data_raw[i].keys())
         for t in range(timesteps):
@@ -189,7 +189,7 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
     count = 0
 
 #     num_batches = int(len(train_dataloader)/BATCH_SIZE)
-    num_batches = 4
+    num_batches = 1
 
 
     n_epoch=1 
@@ -206,15 +206,16 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
             Hidden_State , _ = encoder.loop ( input_to_LSTM )
             stream2_out , _ , _ = decoder.loop ( Hidden_State )
             scaled_train = scale_train ( stream2_out , grip_batch_test)
-            mse = MSE(scaled_train/torch.max(scaled_train), grip_batch_test/torch.max(grip_batch_test)) * (torch.max(grip_batch_test)).cpu().detach().numpy()
-            mse = np.sqrt(mse)
+            ade_bch, fde_bch = MSE(scaled_train/torch.max(scaled_train), grip_batch_test/torch.max(grip_batch_test)) * (torch.max(grip_batch_test)).cpu().detach().numpy()
+#             mse = np.sqrt(mse)
 #             print ('mse shape- ', mse.shape)
-            ade += mse
-            fde += mse[-1]
+            ade += ade_bch
+            fde += fde_bch
+#             fde += mse[-1]
 #             print ('ade shape- ', ade.shape)
 
         # count += BATCH_SIZE
-        count += 1
+#         count += 1
 #     ade = ade/count
 #     fde = fde/count
     ade = ade/(n_epoch * num_batches)
@@ -225,42 +226,16 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
 
 
 def MSE(y_pred, y_gt, device=device):
-#     # y_pred = y_pred.numpy()
-#     y_pred = y_pred.cpu().detach().numpy()
-#     y_gt = y_gt.cpu().detach().numpy()
-#     acc = np.zeros(np.shape(y_pred)[:-1])
-#     muX = y_pred[:,:,0]
-#     muY = y_pred[:,:,1]
-#     x = np.array(y_gt[:,:, 0])
-#     x = x
-#     y = np.array(y_gt[:,:, 1])
-#     y = y
-#     # print(muX,x,muY,y)
-#     acc = np.power(x-muX, 2) + np.power(y-muY, 2)
-#     lossVal = np.sum(acc, axis=0)/len(acc)
-#     # lossVal = np.sum(acc, axis=0)
-#     return lossVal
-#     y_pred = y_pred.numpy()
-    y_pred = y_pred.cpu().detach().numpy()
-#     print (y_pred.shape)
-    y_gt = y_gt.cpu().detach().numpy()
-    muX = y_pred[:,0,:,:]
-    muY = y_pred[:,1,:,:]
-    acc = np.zeros(np.shape(muX))
-#     print('Accuracy shape- initialize',acc.shape)
-    x = np.array(y_gt[:,0,:,:])
-#     x = (x-np.mean(x))/x.std()
-    x = x
-    y = np.array(y_gt[:,1,:,:])
-    # muX = np.mean(x) + (x - np.mean(muX)) * (np.std(x))/(np.std(muX))
-    # muX = np.mean(x) + (x - np.mean(muX))
-    y = y
-#     y = (y-np.mean(y))/y.std()
-    # muY = np.mean(y) + (y -np.mean(muY)) * (np.std(y))/(np.std(muY))
-    # muY = np.mean(y) + (y -np.mean(muY))
-    acc = np.power(x-muX, 2) + np.power(y-muY, 2)
-#     print('Accuracy shape- later',acc.shape)
-
-    lossVal = np.sum(acc, axis=0)/len(acc)
-#     print ('lossVal dimension',lossVal.shape)
-    return lossVal
+    y_pred = y_pred.cpu().detach().numpy() #[ 16 2 220 20]
+    y_gt = y_gt.cpu().detach().numpy()  
+    mask = np.ones(y_gt.shape)
+    mask[y_gt == 0] = 0 
+    y_pred = y_pred*mask
+    ade = np.mean(np.linalg.norm(y_pred - y_gt, axis=1))
+    root_error = np.linalg.norm(y_pred - y_gt, axis=1)
+    root_error_agents = np.sum(root_error, axis = 1)
+    root_error_dp = np.sum(root_error_agents, axis = 0)
+    fde = root_error_dp[-1]/(y_pred.shape[0]*y_pred.shape[2])
+#     fde = np.mean(np.linalg.norm(y_pred[:,:,:,-1] - y_gt[:,:,:,-1], axis = 1) )
+#     print (np.linalg.norm(y_pred[:,:,:,-1] - y_gt[:,:,:,-1]).shape)
+    return ade, fde
