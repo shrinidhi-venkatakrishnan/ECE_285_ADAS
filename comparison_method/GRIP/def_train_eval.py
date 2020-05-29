@@ -194,7 +194,7 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
 
 #     num_batches = int(len(train_dataloader)/BATCH_SIZE)
     num_batches = 1
-    mse2=np.empty((0,20))
+    mse2=np.empty((0,pred_seq_len))
 
     for bch in range ( num_batches ):
         print ( '# {}/{} batch'.format ( bch , num_batches ) )
