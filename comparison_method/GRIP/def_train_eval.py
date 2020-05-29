@@ -17,7 +17,7 @@ from torch.autograd import Variable
 
 device = torch.device("cuda:0")
 # s1 = True
-BATCH_SIZE= 16
+BATCH_SIZE= 32
 train_seq_len = 6
 pred_seq_len = 10
 FINAL_GRIP_OUTPUT_COORDINATE_SIZE = 256
@@ -44,9 +44,10 @@ def load_grip_batch(index, data_raw, batchsize):
 
 def trainIters(n_epochs, train_dataloader, valid_dataloader, data, sufix, print_every=1, save_every=5, plot_every=1000, learning_rate=0.001):
 
-#     num_batches = int(len(train_dataloader)/BATCH_SIZE)
+    num_batches = int(len(train_dataloader)/BATCH_SIZE)
     array=[]
-    num_batches = 4
+    batch_loss = []
+#     num_batches = 4
 
 
     train_raw = train_dataloader
@@ -60,6 +61,8 @@ def trainIters(n_epochs, train_dataloader, valid_dataloader, data, sufix, print_
     grip_model = GRIPModel(grip_batch_train.shape[1], grip_batch_train.shape[3]).to(device)
     encoder_stream = Encoder ( FINAL_GRIP_OUTPUT_COORDINATE_SIZE , grip_batch_train.shape[2]).to ( device )
     decoder_stream = Decoder (FINAL_GRIP_OUTPUT_COORDINATE_SIZE_DECODER, grip_batch_val.shape[0], grip_batch_val.shape[2], grip_batch_val.shape[3]).to ( device )
+    print(encoder_stream)
+    print(decoder_stream)
     encoder_stream_optimizer = optim.RMSprop(encoder_stream.parameters(), lr=learning_rate)
     decoder_stream_optimizer = optim.RMSprop(decoder_stream.parameters(), lr=learning_rate)
 
@@ -75,15 +78,18 @@ def trainIters(n_epochs, train_dataloader, valid_dataloader, data, sufix, print_
             input_to_LSTM = grip_model ( grip_batch_train )
             
             loss_stream, output_stream_decoder = train_stream(input_to_LSTM, grip_batch_test, encoder_stream, decoder_stream, encoder_stream_optimizer, decoder_stream_optimizer)
+            print(loss_stream)
+            batch_loss.append(loss_stream)
             print_loss_total_stream += loss_stream
 
         print( 'stream average loss:', print_loss_total_stream/num_batches)
-        array=array.append(print_loss_total_stream/num_batches)
+        array.append(print_loss_total_stream/num_batches)
         if (epoch + 1) % save_every == 0:
             save_model(encoder_stream, decoder_stream, grip_model, data, sufix)
     if n_epochs > 0:
         compute_accuracy_stream(train_dataloader, 	valid_dataloader, grip_model, encoder_stream, decoder_stream, n_epochs)
     save_model(encoder_stream, decoder_stream, grip_model, data, sufix )
+    np.save('batch_losses.npy',batch_loss)
     print('loss over epochs',array)
     return encoder_stream, decoder_stream, grip_model
 
