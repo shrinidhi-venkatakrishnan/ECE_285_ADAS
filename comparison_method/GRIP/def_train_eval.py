@@ -16,11 +16,19 @@ from scipy.sparse.linalg import eigs
 from torch.autograd import Variable
 
 device = torch.device("cuda:0")
-# s1 = True
-BATCH_SIZE= 32
-VEHICLES=220
-train_seq_len = 10
-pred_seq_len = 20
+
+DATA='NEW-LYFT'  
+
+BATCH_SIZE= 64
+if DATA=='NUSCENES':
+    VEHICLES=80
+    train_seq_len = 10
+    pred_seq_len = 10  #change to 20 for NEW-LYFT
+if DATA=='NEW-LYFT':
+    VEHICLES=220
+    train_seq_len = 10
+    pred_seq_len = 20
+    
 FINAL_GRIP_OUTPUT_COORDINATE_SIZE = 256
 FINAL_GRIP_OUTPUT_COORDINATE_SIZE_DECODER = 256
 MODEL_LOC = '../../../resources/trained_models/GRIP'
@@ -29,7 +37,7 @@ def load_grip_batch(index, data_raw, batchsize):
     keys = list(data_raw[0].keys())
 #     print("keys",keys)
     timesteps = len(keys) - 2
-    print (timesteps)
+#     print (timesteps)
     coordinates, n_agents = data_raw[0][keys[2]].shape
 #     print("coordinates, agents", coordinates, n_agents)
     data = torch.zeros((batchsize, coordinates, n_agents, timesteps)).to(device)
@@ -71,10 +79,14 @@ def trainIters(n_epochs, train_dataloader, valid_dataloader, data, sufix, print_
             print('# {}/{} epoch {}/{} batch'.format(epoch, n_epochs, bch, num_batches))
             grip_batch_train = load_grip_batch ( bch, train_dataloader , BATCH_SIZE )
             grip_batch_test = load_grip_batch (bch, valid_dataloader , BATCH_SIZE )
-
-            input_to_LSTM = grip_model ( grip_batch_train )
             
+            start = time.process_time()
+            input_to_LSTM = grip_model ( grip_batch_train )
+            print("Time to run grip model:",(time.process_time() -start))
+            start = time.process_time()
+#             loss_stream, output_stream_decoder = 0,0
             loss_stream, output_stream_decoder = train_stream(input_to_LSTM, grip_batch_test, encoder_stream, decoder_stream, encoder_stream_optimizer, decoder_stream_optimizer)
+            print("Time to run trainstream:",(time.process_time() -start))
             print(loss_stream)
             batch_loss.append(loss_stream)
             print_loss_total_stream += loss_stream
@@ -126,8 +138,6 @@ def save_model( encoder_stream2, decoder_stream2, grip, data, sufix, loc=MODEL_L
 
 
 def train_stream(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer):
-
-    soc_enc = torch.zeros_like(masks).float()
     
     Hidden_State , _ = encoder.loop(input_tensor)
     stream2_out,_, _ = decoder.loop(Hidden_State)
@@ -189,14 +199,15 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
     ade = 0
     fde = 0
     count = 0
-
+    
     num_batches = int(1000/BATCH_SIZE)
-#     num_batches = int(len(train_dataloader)/BATCH_SIZE)
-    mse2=np.empty((0,VEHICLES,pred_seq_len))
-    ade_mat=np.empty((0,VEHICLES,pred_seq_len))
-
-    for bch in range ( num_batches ):
-        print ( '# {}/{} batch'.format ( bch , num_batches ) )
+    total_batches = int(len(train_dataloader)/BATCH_SIZE)
+    mse2=np.empty((BATCH_SIZE,VEHICLES,pred_seq_len))
+    ade_mat=np.empty((BATCH_SIZE,VEHICLES,pred_seq_len))
+    
+    skip_value = int(total_batches/num_batches)
+    for bch in range(0,total_batches,skip_value):
+        print ( '# {}/{} batch'.format ( bch/skip_value , num_batches ) )
         grip_batch_train = load_grip_batch (bch, train_dataloader , BATCH_SIZE )
         grip_batch_test = load_grip_batch (bch, label_dataloader , BATCH_SIZE )
 
@@ -206,9 +217,13 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
         scaled_train = scale_train ( stream2_out , grip_batch_test)
         
         ade_bch, mse = MSE(scaled_train/torch.max(scaled_train), grip_batch_test/torch.max(grip_batch_test)) * (torch.max(grip_batch_test)).cpu().detach().numpy()
-        
-        mse2=np.concatenate((mse2,mse))
-        ade_mat=np.concatenate((ade_mat,ade_bch))
+        print(mse2.shape)
+        print(ade_mat.shape)
+        print("shapes mse2",mse2.shape," mse",mse.shape)
+        mse2=np.concatenate((mse2,mse),axis=0)
+#         print('mse concat',mse2.shape)
+        ade_mat=np.concatenate((ade_mat,ade_bch),axis=0)
+#         print('ade_mat shape',ade_mat.shape)
 #         ade += ade_bch
 #         fde += fde_bch
         
@@ -219,7 +234,7 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
     rmse=np.sqrt(mse2)
     
     ade=np.mean(ade_mat,axis=0)
-    ade=np.mean(ade_mat,axis=0)
+    ade=np.mean(ade,axis=0)
     fde=ade[-1]
     print ('Epoch batch Average ADE:',ade, '-------------FDE:',fde, '-------------RMSE', rmse )
 
@@ -233,7 +248,9 @@ def MSE(y_pred, y_gt, device=device):
     
     # ADE FDE Calculation
 #     ade = np.linalg.norm(y_pred - y_gt, axis=1) #16 220 20
-    root_error = np.linalg.norm(y_pred - y_gt, axis=1)#16 220 20 of root of squared error
+    root_error = np.linalg.norm(y_pred - y_gt, axis=1)#16 220 20 of root of squared error  # 64 80 10
+#     print('root error shape',root_error.shape)
+#     ads=ads
 #     root_error_agents = np.mean(root_error, axis = 1) # 16 20
 #     root_error_dp = np.sum(root_error_agents, axis = 0)
 #     fde = root_error_dp[-1]/(y_pred.shape[0]*y_pred.shape[2])
@@ -243,6 +260,7 @@ def MSE(y_pred, y_gt, device=device):
     accuracy=y_pred-y_gt
     arr = np.power(accuracy,2) # 16 2 220 20
     x_y=np.sum(arr,axis=1)
+#     print('max mse',np.min(x_y))  # 64 80 10
 #     sum_agents=np.mean(x_y,axis=1)
     return root_error,x_y  #root_error_agents is ade return 16 x 220 x 20 of squared error
 #     return ade, fde, sum_agents
