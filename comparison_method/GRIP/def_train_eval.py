@@ -184,8 +184,8 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
     
     num_batches = int(1000/BATCH_SIZE)
     total_batches = int(len(train_dataloader)/BATCH_SIZE)
-    mse2=np.empty((BATCH_SIZE,VEHICLES,pred_seq_len))
-    ade_mat=np.empty((BATCH_SIZE,VEHICLES,pred_seq_len))
+    mse2=np.zeros((BATCH_SIZE,VEHICLES,pred_seq_len))
+    ade_mat=np.zeros((BATCH_SIZE,VEHICLES,pred_seq_len))
     
     skip_value = int(total_batches/num_batches)
     for bch in range(0,total_batches,skip_value):
