@@ -204,9 +204,11 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
     count = 0
 
 #     num_batches = int(len(train_dataloader)/BATCH_SIZE)
-    num_batches = int(1000/64)
-    mse2=np.empty((BATCH_SIZE,VEHICLES,pred_seq_len))
-    ade_mat=np.empty((BATCH_SIZE,VEHICLES,pred_seq_len))
+#     num_batches = int(1000/64)
+    num_batches = 1
+       
+    mse2=np.zeros((1,VEHICLES,pred_seq_len))
+    ade_mat=np.zeros((1,VEHICLES,pred_seq_len))
 
     for bch in range ( num_batches ):
         print ( '# {}/{} batch'.format ( bch , num_batches ) )
@@ -223,7 +225,7 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
         print(ade_mat.shape)
         
         mse2=np.concatenate((mse2,mse),axis=0)
-#         print('mse concat',mse2.shape)
+        print('mse concat',mse2.shape)
         ade_mat=np.concatenate((ade_mat,ade_bch),axis=0)
 #         print('ade_mat shape',ade_mat.shape)
 #         ade += ade_bch
@@ -231,11 +233,17 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
         
 #     ade = ade/(num_batches)
 #     fde = fde/(num_batches)
+    print("max1",np.max(mse2))
+    mse2=mse2[1:]
     mse2=np.mean(mse2,axis=0)
+    print("max2",np.max(mse2))
+    print('mse concat',mse2.shape)
     mse2=np.mean(mse2,axis=0)
+    print('mse concat',mse2.shape)
     rmse=np.sqrt(mse2)
     
-    ade=np.mean(ade_mat,axis=0)
+    ade=ade_mat[1:]
+    ade=np.mean(ade,axis=0)
     ade=np.mean(ade,axis=0)
     fde=ade[-1]
     print ('Epoch batch Average ADE:',ade, '-------------FDE:',fde, '-------------RMSE', rmse )
@@ -248,21 +256,16 @@ def MSE(y_pred, y_gt, device=device):
     mask[y_gt == 0] = 0 
     y_pred = y_pred*mask
     
-    # ADE FDE Calculation
-#     ade = np.linalg.norm(y_pred - y_gt, axis=1) #16 220 20
     root_error = np.linalg.norm(y_pred - y_gt, axis=1)#16 220 20 of root of squared error  # 64 80 10
-#     print('root error shape',root_error.shape)
-#     ads=ads
-#     root_error_agents = np.mean(root_error, axis = 1) # 16 20
-#     root_error_dp = np.sum(root_error_agents, axis = 0)
-#     fde = root_error_dp[-1]/(y_pred.shape[0]*y_pred.shape[2])
+    print('root error shape',root_error.shape)
     
     # MSE Calculation
     accuracy=np.zeros(np.shape(y_pred))
     accuracy=y_pred-y_gt
     arr = np.power(accuracy,2) # 16 2 220 20
-    x_y=np.sum(arr,axis=1)
-#     print('max mse',np.min(x_y))  # 64 80 10
-#     sum_agents=np.mean(x_y,axis=1)
+    x_y=np.sum(arr,axis=1)  #16 220 20
+#     print(np.min(x_y[:,:,0]))
+    print("max_in_func",np.max(x_y))
+#     print(" ")
     return root_error,x_y  #root_error_agents is ade return 16 x 220 x 20 of squared error
 #     return ade, fde, sum_agents
