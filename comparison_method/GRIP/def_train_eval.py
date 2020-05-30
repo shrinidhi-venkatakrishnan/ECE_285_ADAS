@@ -236,7 +236,7 @@ def MSE(y_pred, y_gt, device=device):
     
     # ADE FDE Calculation
 #     ade = np.linalg.norm(y_pred - y_gt, axis=1) #16 220 20
-    root_error = np.linalg.norm(y_pred - y_gt, axis=1)#16 220 20
+    root_error = np.linalg.norm(y_pred - y_gt, axis=1)#16 220 20 of root of squared error
 #     root_error_agents = np.mean(root_error, axis = 1) # 16 20
 #     root_error_dp = np.sum(root_error_agents, axis = 0)
 #     fde = root_error_dp[-1]/(y_pred.shape[0]*y_pred.shape[2])
@@ -247,5 +247,5 @@ def MSE(y_pred, y_gt, device=device):
     arr = np.power(accuracy,2) # 16 2 220 20
     x_y=np.sum(arr,axis=1)
 #     sum_agents=np.mean(x_y,axis=1)
-    return root_error_agents,x_y  #root_error_agents is ade return 16 x 220 x 20
+    return root_error,x_y  #root_error_agents is ade return 16 x 220 x 20 of squared error
 #     return ade, fde, sum_agents
