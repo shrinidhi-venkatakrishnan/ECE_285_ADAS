@@ -144,11 +144,6 @@ def train_stream(input_tensor, target_tensor, encoder, decoder, encoder_optimize
 
     Hidden_State , _ = encoder.loop(input_tensor)
     stream2_out,_, _ = decoder.loop(Hidden_State)
-    
-#     print("Shape of input to decoder/output of encoder", Hidden_State.shape)
-#     print("Shape of decoder output", stream2_out.shape)
-#     print("Shape of target tensor", target_tensor.shape)
-#     asd = asd
    
     l = nn.MSELoss()
 
@@ -157,19 +152,6 @@ def train_stream(input_tensor, target_tensor, encoder, decoder, encoder_optimize
 
     scaled_train = scale_train(stream2_out, target_tensor)
     
-#     #streamout2 change shape [ 16 x 220 x 20 , 2]
-#     scaled_train=scaled_train.permute(0,2,3,1)
-#     print('changed permuation',scaled_train.shape)
-    
-#     target_tensor=target_tensor.permute(0,2,3,1)
-#     print('changed permuation',target_tensor.shape)
-    
-#     scaled_train.resize_((scaled_train.shape[0]*scaled_train.shape[1]*scaled_train.shape[2],scaled_train.shape[3]))
-#     target_tensor.resize_((target_tensor.shape[0]*target_tensor.shape[1]*target_tensor.shape[2],target_tensor.shape[3]))
-    
-#     print('after resizing',scaled_train.shape)
-#     print('after resizing target', target_tensor.shape)
-
     ## New loss calculation
     mask = np.ones(target_tensor.shape)
     mask[target_tensor.cpu().detach().numpy() == 0] = 0
@@ -227,12 +209,7 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
         mse2=np.concatenate((mse2,mse),axis=0)
         print('mse concat',mse2.shape)
         ade_mat=np.concatenate((ade_mat,ade_bch),axis=0)
-#         print('ade_mat shape',ade_mat.shape)
-#         ade += ade_bch
-#         fde += fde_bch
         
-#     ade = ade/(num_batches)
-#     fde = fde/(num_batches)
     print("max1",np.max(mse2))
     mse2=mse2[1:]
     mse2=np.mean(mse2,axis=0)
@@ -264,8 +241,5 @@ def MSE(y_pred, y_gt, device=device):
     accuracy=y_pred-y_gt
     arr = np.power(accuracy,2) # 16 2 220 20
     x_y=np.sum(arr,axis=1)  #16 220 20
-#     print(np.min(x_y[:,:,0]))
-    print("max_in_func",np.max(x_y))
-#     print(" ")
     return root_error,x_y  #root_error_agents is ade return 16 x 220 x 20 of squared error
-#     return ade, fde, sum_agents
+
