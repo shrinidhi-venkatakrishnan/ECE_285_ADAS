@@ -17,7 +17,7 @@ from torch.autograd import Variable
 
 device = torch.device("cuda:0")
 
-DATA='NEW-LYFT'  
+DATA='NUSCENES'  
 
 BATCH_SIZE= 64
 if DATA=='NUSCENES':
@@ -181,6 +181,7 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
     ade = 0
     fde = 0
     count = 0
+    NZ=[]
     
     num_batches = int(1000/BATCH_SIZE)
     total_batches = int(len(train_dataloader)/BATCH_SIZE)
@@ -201,20 +202,23 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
         ade_bch, mse = MSE(scaled_train/torch.max(scaled_train), grip_batch_test/torch.max(grip_batch_test)) * (torch.max(grip_batch_test)).cpu().detach().numpy()
         print(mse2.shape)
         print(ade_mat.shape)
-        print("shapes mse2",mse2.shape," mse",mse.shape)
+#         print("shapes mse2",mse2.shape," mse",mse.shape)
         mse2=np.concatenate((mse2,mse),axis=0)
-        print('mse concat',mse2.shape)
+#         print('mse concat',mse2.shape)
         ade_mat=np.concatenate((ade_mat,ade_bch),axis=0)
         
-    print("max1",np.max(mse2))
+#     print("max1",np.max(mse2))
     mse2=mse2[1:] #16 220 20
-    non_zeros=np.count_nonzero(mse2)
+    for i in range(mse2.shape[2]):
+        non_zero=np.count_nonzero(mse2[:,:,i])
+        NZ.append(non_zero)
     
     mse2=np.sum(mse2,axis=0)
     mse2=np.sum(mse2,axis=0)
-    mse2=mse2/non_zeros
-    rmse=np.sqrt(mse2)
-    print('newest rmse',rmse)
+    res = [i / j for i, j in zip(mse2, NZ)] 
+#     mse2=mse2/non_zeros
+    rmse=np.sqrt(res)
+#     print('newest rmse',rmse)
     
 #     
 #     mse2=np.mean(mse2,axis=0)
@@ -228,7 +232,7 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
     ade=np.mean(ade,axis=0)
     ade=np.mean(ade,axis=0)
     fde=ade[-1]
-    print ('Epoch batch Average ADE:',ade, '-------------FDE:',fde, '-------------RMSE', rmse )
+    print ('Epoch batch Average ADE:',ade, '-------------FDE:',fde, '-------------RMSE', res )
 
 
 def MSE(y_pred, y_gt, device=device):
@@ -239,7 +243,7 @@ def MSE(y_pred, y_gt, device=device):
     y_pred = y_pred*mask
     
     root_error = np.linalg.norm(y_pred - y_gt, axis=1)#16 220 20 of root of squared error  # 64 80 10
-    print('root error shape',root_error.shape)
+#     print('root error shape',root_error.shape)
     
     # MSE Calculation
     accuracy=np.zeros(np.shape(y_pred))
