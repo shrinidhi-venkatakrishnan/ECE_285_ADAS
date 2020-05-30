@@ -4,8 +4,11 @@ from torch import optim
 import torch.nn.functional as F
 import numpy as np
 from torch.autograd import Variable
+import time 
+import itertools
 
 device = torch.device("cuda:0")
+max_num_vehicles = 0
 
 class GRIPModel(nn.Module):
     def __init__(self, coordinates, timesteps):
@@ -21,6 +24,7 @@ class GRIPModel(nn.Module):
         self.Conv5 = nn.Conv2d(128, 256, kernel_size=(1, 3), padding=(0, 1 if timesteps >= 4 else 1), stride=(1, 2 if timesteps >= 4 else 1))
 #         self.Conv5 = nn.Conv2d(128, 256, kernel_size=(1, 3), padding=(0, 0 if timesteps >= 4 else 1))
         self.Dropout = nn.Dropout(0.2)
+        self.max_num_vehicles = 0
 
     def graph_operation(self, x, adj, alpha=0.001):
 #         print('shape of x',x.shape)
@@ -63,39 +67,56 @@ class GRIPModel(nn.Module):
         # return np.abs ( x1 - y1 )
         return np.sqrt ( pow ( x1 - x2 , 2 ) + pow ( y1 - y2 , 2 ) )
 
-    def computeKNN (self, curr_dict , ID , k ):  #xt,i,k=4 i goes from 0-219
-        import heapq
-        from operator import itemgetter
+#     def computeKNN (self, curr_dict , ID , k ):  #xt,i,k=4 i goes from 0-219
+#         import heapq
+#         from operator import itemgetter
 
-        ID_x = curr_dict[ ID ][ 0 ]
-        ID_y = curr_dict[ ID ][ 1 ]
-        dists = {}
+#         ID_x = curr_dict[ ID ][ 0 ]
+#         ID_y = curr_dict[ ID ][ 1 ]
+#         dists = {}
         
-        for j in range ( len ( curr_dict ) ): #220
-            if j != ID:
-                dists[ j ] = self.computeDist ( ID_x , ID_y , curr_dict[ j ][ 0 ] , curr_dict[ j ][ 1 ] )
-#         print('distance inside knn - to make sense of the range',dists)
-        KNN_IDs = dict ( heapq.nsmallest ( k , dists.items () , key=itemgetter ( 1 ) ) )
-        neighbors = list ( KNN_IDs.keys () )
+#         for j in range ( len ( curr_dict ) ): #220
+#             if j != ID:
+#                 dists[ j ] = self.computeDist ( ID_x , ID_y , curr_dict[ j ][ 0 ] , curr_dict[ j ][ 1 ] )
+# #         print('distance inside knn - to make sense of the range',dists)
+#         KNN_IDs = dict ( heapq.nsmallest ( k , dists.items () , key=itemgetter ( 1 ) ) )
+#         neighbors = list ( KNN_IDs.keys () )
 
-        return neighbors
+#         return neighbors
+
+#     def compute_A ( self , xt ):
+# #         print('xt',xt.shape)  # 220x 2 = nxc
+#         # return Variable(torch.Tensor(np.ones([xt.shape[0],xt.shape[0]])).cuda())
+#         xt = xt.cpu ().detach ().numpy ()
+#         A = np.zeros ( [ xt.shape[ 0 ] , xt.shape[ 0 ] ] ) # nxn - 220x220
+# #         print(A.shape, 'SIZE OF A inside compute A')
+# #         print(len(xt))
+#         num = 0
+# #         print('shape of xt is', xt.shape)
+#         for i in range ( len ( xt ) ): # in range of 220 or n
+#             if xt[i][0] and xt[i][1]:  # if x and y coordinates for that object is present
+#                 num = num+1
+#                 neighbors = self.computeKNN ( xt , i , 6 )
+#                 for neighbor in neighbors:
+#                     # if neighbor in labels:
+#                     # if idx < labels.index ( neighbor ):
+#                     A[ i ][ neighbor ] = 1 #make the graph location =1 if it is in the dclose distance
+# #         self.max_num_vehicles = max(self.max_num_vehicles,num)
+# #         print(self.max_num_vehicles)
+#         return Variable ( torch.Tensor ( A ).to (device) )
 
     def compute_A ( self , xt ):
-#         print('xt',xt.shape)  # 220x 2 = nxc
-        # return Variable(torch.Tensor(np.ones([xt.shape[0],xt.shape[0]])).cuda())
         xt = xt.cpu ().detach ().numpy ()
         A = np.zeros ( [ xt.shape[ 0 ] , xt.shape[ 0 ] ] ) # nxn - 220x220
-#         print(A.shape, 'SIZE OF A inside compute A')
-#         print(len(xt))
+        pos_val = (np.where(xt[:,0]!=0))[0]
         
-#         print('shape of xt is', xt.shape)
-        for i in range ( len ( xt ) ): # in range of 220 or n
-            if xt[i][0] and xt[i][1]:  # if x and y coordinates for that object is present
-                neighbors = self.computeKNN ( xt , i , 6 )
-                for neighbor in neighbors:
-                    # if neighbor in labels:
-                    # if idx < labels.index ( neighbor ):
-                    A[ i ][ neighbor ] = 1 #make the graph location =1 if it is in the dclose distance
+        
+        
+        
+        for i in range ( len ( pos_val ) ): # in range of 220 or n
+                for j in range (i+1,len (pos_val)):
+                    A[ pos_val[i] ][ pos_val[j] ] = 1 
+                    A[ pos_val[j] ][ pos_val[i] ] = 1 
         return Variable ( torch.Tensor ( A ).to (device) )
 
     def forward(self, x):
@@ -103,12 +124,14 @@ class GRIPModel(nn.Module):
 #         print(" ")
 #         print('input shape',x.shape)
         Ats = torch.zeros((x.shape[0], x.shape[2], x.shape[2], x.shape[3])).to(device)  #16 x 220 x 220x 20
+        start = time.process_time()
         for b in range(x.shape[0]):
             if b % 5 == 0:
                 print('{}/{}'.format(b, x.shape[0]))
             for t in range(x.shape[3]):
 
                 Ats[b, :, :, t] = self.compute_A(x[b, :, :, t].permute(1, 0)) # graph connection of the neighbors
+        print("Time to compute graph connections:",(time.process_time() -start))
 #             print('A MATRIX COMPUTATION',Ats.shape)
         # print(1)
 #         print('size of adjacancy',Ats.shape)
