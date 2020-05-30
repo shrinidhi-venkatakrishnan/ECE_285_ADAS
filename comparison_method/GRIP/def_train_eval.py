@@ -49,22 +49,17 @@ def trainIters(n_epochs, train_dataloader, valid_dataloader, data, sufix, print_
     num_batches = int(len(train_dataloader)/BATCH_SIZE)
     array=[]
     batch_loss = []
-#     num_batches = 4
-
 
     train_raw = train_dataloader
     pred_raw = valid_dataloader
 
     # Initialize encoder, decoders for both streams
-
     grip_batch_train = load_grip_batch(0, train_dataloader, BATCH_SIZE)
     grip_batch_val = load_grip_batch(0, valid_dataloader, BATCH_SIZE)
     print('data finished')
     grip_model = GRIPModel(grip_batch_train.shape[1], grip_batch_train.shape[3]).to(device)
     encoder_stream = Encoder ( FINAL_GRIP_OUTPUT_COORDINATE_SIZE , grip_batch_train.shape[2]).to ( device )
     decoder_stream = Decoder (FINAL_GRIP_OUTPUT_COORDINATE_SIZE_DECODER, grip_batch_val.shape[0], grip_batch_val.shape[2], grip_batch_val.shape[3]).to ( device )
-    print(encoder_stream)
-    print(decoder_stream)
     encoder_stream_optimizer = optim.RMSprop(encoder_stream.parameters(), lr=learning_rate)
     decoder_stream_optimizer = optim.RMSprop(decoder_stream.parameters(), lr=learning_rate)
 
@@ -132,6 +127,8 @@ def save_model( encoder_stream2, decoder_stream2, grip, data, sufix, loc=MODEL_L
 
 def train_stream(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer):
 
+    soc_enc = torch.zeros_like(masks).float()
+    
     Hidden_State , _ = encoder.loop(input_tensor)
     stream2_out,_, _ = decoder.loop(Hidden_State)
     
