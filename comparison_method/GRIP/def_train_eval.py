@@ -211,13 +211,22 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
         ade_mat=np.concatenate((ade_mat,ade_bch),axis=0)
         
     print("max1",np.max(mse2))
-    mse2=mse2[1:]
-    mse2=np.mean(mse2,axis=0)
-    print("max2",np.max(mse2))
-    print('mse concat',mse2.shape)
-    mse2=np.mean(mse2,axis=0)
-    print('mse concat',mse2.shape)
+    mse2=mse2[1:] #16 220 20
+    non_zeros=np.count_nonzero(mse2)
+    
+    mse2=np.sum(mse2,axis=0)
+    mse2=np.sum(mse2,axis=0)
+    mse2=mse2/non_zeros
     rmse=np.sqrt(mse2)
+    print('newest rmse',rmse)
+    
+#     
+#     mse2=np.mean(mse2,axis=0)
+#     print("max2",np.max(mse2))
+#     print('mse concat',mse2.shape)
+#     mse2=np.mean(mse2,axis=0)
+#     print('mse concat',mse2.shape)
+#     rmse=np.sqrt(mse2)
     
     ade=ade_mat[1:]
     ade=np.mean(ade,axis=0)
