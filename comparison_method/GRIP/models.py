@@ -24,7 +24,7 @@ class GRIPModel(nn.Module):
         self.Conv5 = nn.Conv2d(128, 256, kernel_size=(1, 3), padding=(0, 1 if timesteps >= 4 else 1), stride=(1, 2 if timesteps >= 4 else 1))
 #         self.Conv5 = nn.Conv2d(128, 256, kernel_size=(1, 3), padding=(0, 0 if timesteps >= 4 else 1))
         self.Dropout = nn.Dropout(0.2)
-        self.max_num_vehicles = 0
+        self.GC = 25
 
     def graph_operation(self, x, adj, alpha=0.001):
 #         print('shape of x',x.shape)
@@ -106,31 +106,17 @@ class GRIPModel(nn.Module):
 #         return Variable ( torch.Tensor ( A ).to (device) )
 
     def compute_A ( self , xt ):
-        
-        
         xt = xt.cpu ().detach ().numpy ()
         A = np.zeros ( [ xt.shape[ 0 ] , xt.shape[ 0 ] ] ) # nxn - 220x220
         pos_val = (np.where(xt[:,0]!=0))[0]
 #         print(pos_val)
         for i in range(len(pos_val)):
             for j in range(i,len(pos_val)):
-                dis=np.linalg.norm(xt[pos_val[i]]-xt[pos_val[j]],axis=1)
+                dis=np.linalg.norm(xt[pos_val[i]]-xt[pos_val[j]])
 #                 dis=np.sqrt(np.power(xt[pos_val[i][0]]-xt[pos_val[j][0]],2))
-                if dis<=G_C:
+                if dis<=self.GC:
                     A[ pos_val[i] ][ pos_val[j] ] = 1 
                     A[ pos_val[j] ][ pos_val[i] ] = 1
-        
-#         xt = xt.cpu ().detach ().numpy ()
-#         A = np.zeros ( [ xt.shape[ 0 ] , xt.shape[ 0 ] ] ) # nxn - 220x220
-#         pos_val = (np.where(xt[:,0]!=0))[0]
-        
-        
-        
-        
-#         for i in range ( len ( pos_val ) ): # in range of 220 or n
-#                 for j in range (i+1,len (pos_val)):
-#                     A[ pos_val[i] ][ pos_val[j] ] = 1 
-#                     A[ pos_val[j] ][ pos_val[i] ] = 1 
         return Variable ( torch.Tensor ( A ).to (device) )
 
     def forward(self, x):
@@ -142,9 +128,10 @@ class GRIPModel(nn.Module):
         for b in range(x.shape[0]):
             if b % 5 == 0:
                 print('{}/{}'.format(b, x.shape[0]))
-            for t in range(x.shape[3]):
-
-                Ats[b, :, :, t] = self.compute_A(x[b, :, :, t].permute(1, 0)) # graph connection of the neighbors
+#             for t in range(x.shape[3]):
+#                 Ats[b, :, :, t] = self.compute_A(x[b, :, :, t].permute(1, 0)) # graph connection of the neighbors
+            Ats[b] = self.compute_A(x[b, :, :, x.shape[3]-1].permute(1, 0))[:,:,np.newaxis] # graph connection of the neighbors
+    
         print("Time to compute graph connections:",(time.process_time() -start))
 #             print('A MATRIX COMPUTATION',Ats.shape)
         # print(1)

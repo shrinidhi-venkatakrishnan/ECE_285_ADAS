@@ -141,11 +141,6 @@ def train_stream(input_tensor, target_tensor, encoder, decoder, encoder_optimize
     
     Hidden_State , _ = encoder.loop(input_tensor)
     stream2_out,_, _ = decoder.loop(Hidden_State)
-    
-#     print("Shape of input to decoder/output of encoder", Hidden_State.shape)
-#     print("Shape of decoder output", stream2_out.shape)
-#     print("Shape of target tensor", target_tensor.shape)
-#     asd = asd
    
     l = nn.MSELoss()
 
@@ -154,19 +149,6 @@ def train_stream(input_tensor, target_tensor, encoder, decoder, encoder_optimize
 
     scaled_train = scale_train(stream2_out, target_tensor)
     
-#     #streamout2 change shape [ 16 x 220 x 20 , 2]
-#     scaled_train=scaled_train.permute(0,2,3,1)
-#     print('changed permuation',scaled_train.shape)
-    
-#     target_tensor=target_tensor.permute(0,2,3,1)
-#     print('changed permuation',target_tensor.shape)
-    
-#     scaled_train.resize_((scaled_train.shape[0]*scaled_train.shape[1]*scaled_train.shape[2],scaled_train.shape[3]))
-#     target_tensor.resize_((target_tensor.shape[0]*target_tensor.shape[1]*target_tensor.shape[2],target_tensor.shape[3]))
-    
-#     print('after resizing',scaled_train.shape)
-#     print('after resizing target', target_tensor.shape)
-
     ## New loss calculation
     mask = np.ones(target_tensor.shape)
     mask[target_tensor.cpu().detach().numpy() == 0] = 0
@@ -221,19 +203,20 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
         print(ade_mat.shape)
         print("shapes mse2",mse2.shape," mse",mse.shape)
         mse2=np.concatenate((mse2,mse),axis=0)
-#         print('mse concat',mse2.shape)
+        print('mse concat',mse2.shape)
         ade_mat=np.concatenate((ade_mat,ade_bch),axis=0)
-#         print('ade_mat shape',ade_mat.shape)
-#         ade += ade_bch
-#         fde += fde_bch
         
-#     ade = ade/(num_batches)
-#     fde = fde/(num_batches)
+    print("max1",np.max(mse2))
+    mse2=mse2[1:]
     mse2=np.mean(mse2,axis=0)
+    print("max2",np.max(mse2))
+    print('mse concat',mse2.shape)
     mse2=np.mean(mse2,axis=0)
+    print('mse concat',mse2.shape)
     rmse=np.sqrt(mse2)
     
-    ade=np.mean(ade_mat,axis=0)
+    ade=ade_mat[1:]
+    ade=np.mean(ade,axis=0)
     ade=np.mean(ade,axis=0)
     fde=ade[-1]
     print ('Epoch batch Average ADE:',ade, '-------------FDE:',fde, '-------------RMSE', rmse )
@@ -246,21 +229,13 @@ def MSE(y_pred, y_gt, device=device):
     mask[y_gt == 0] = 0 
     y_pred = y_pred*mask
     
-    # ADE FDE Calculation
-#     ade = np.linalg.norm(y_pred - y_gt, axis=1) #16 220 20
     root_error = np.linalg.norm(y_pred - y_gt, axis=1)#16 220 20 of root of squared error  # 64 80 10
-#     print('root error shape',root_error.shape)
-#     ads=ads
-#     root_error_agents = np.mean(root_error, axis = 1) # 16 20
-#     root_error_dp = np.sum(root_error_agents, axis = 0)
-#     fde = root_error_dp[-1]/(y_pred.shape[0]*y_pred.shape[2])
+    print('root error shape',root_error.shape)
     
     # MSE Calculation
     accuracy=np.zeros(np.shape(y_pred))
     accuracy=y_pred-y_gt
     arr = np.power(accuracy,2) # 16 2 220 20
-    x_y=np.sum(arr,axis=1)
-#     print('max mse',np.min(x_y))  # 64 80 10
-#     sum_agents=np.mean(x_y,axis=1)
+    x_y=np.sum(arr,axis=1)  #16 220 20
     return root_error,x_y  #root_error_agents is ade return 16 x 220 x 20 of squared error
-#     return ade, fde, sum_agents
+
