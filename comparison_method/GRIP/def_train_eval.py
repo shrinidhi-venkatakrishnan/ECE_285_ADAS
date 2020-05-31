@@ -185,8 +185,9 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
     
     num_batches = int(1000/BATCH_SIZE)
     total_batches = int(len(train_dataloader)/BATCH_SIZE)
-    mse2=np.zeros((BATCH_SIZE,VEHICLES,pred_seq_len))
-    ade_mat=np.zeros((BATCH_SIZE,VEHICLES,pred_seq_len))
+    mse2=np.zeros((1,VEHICLES,pred_seq_len))
+    ade_mat=np.zeros((1,VEHICLES,pred_seq_len))
+    gt_cat=np.zeros((1,VEHICLES,pred_seq_len))
     
     skip_value = int(total_batches/num_batches)
     for bch in range(0,total_batches,skip_value):
@@ -200,34 +201,24 @@ def compute_accuracy_stream(train_dataloader, label_dataloader, grip_model, enco
         scaled_train = scale_train ( stream2_out , grip_batch_test)
         
         ade_bch, mse = MSE(scaled_train/torch.max(scaled_train), grip_batch_test/torch.max(grip_batch_test)) * (torch.max(grip_batch_test)).cpu().detach().numpy()
-        print(mse2.shape)
-        print(ade_mat.shape)
-#         print("shapes mse2",mse2.shape," mse",mse.shape)
+
         mse2=np.concatenate((mse2,mse),axis=0)
-#         print('mse concat',mse2.shape)
         ade_mat=np.concatenate((ade_mat,ade_bch),axis=0)
-        
-#     print("max1",np.max(mse2))
-    mse2=mse2[1:] #16 220 20
-    for i in range(mse2.shape[2]):
-        non_zero=np.count_nonzero(mse2[:,:,i])
-        NZ.append(non_zero)
+        gt=np.sum(grip_batch_test,axis=1) #16 220 20
+        gt_cat=np.concatenate((gt_cat,gt),axis=0)  #al the sample points alongthe axis=0
+
     
+    gt_cat=gt_cat[1:]
+    for i in range(gt_cat.shape[2]):
+        non_zero=np.count_nonzero(gt_cat[:,:,i])
+        NZ.append(non_zero)
+        
+    mse2=mse2[1:] #16 220 20
     mse2=np.sum(mse2,axis=0)
     mse2=np.sum(mse2,axis=0)
     res = [i / j for i, j in zip(mse2, NZ)] 
-#     mse2=mse2/non_zeros
     rmse=np.sqrt(res)
-#     print('newest rmse',rmse)
-    
-#     
-#     mse2=np.mean(mse2,axis=0)
-#     print("max2",np.max(mse2))
-#     print('mse concat',mse2.shape)
-#     mse2=np.mean(mse2,axis=0)
-#     print('mse concat',mse2.shape)
-#     rmse=np.sqrt(mse2)
-    
+
     ade=ade_mat[1:]
     ade=np.mean(ade,axis=0)
     ade=np.mean(ade,axis=0)
